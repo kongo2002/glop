@@ -1,4 +1,8 @@
-module Data.GLop.Parser where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Data.GLop.Parser
+  ( parseFile
+  ) where
 
 import           Control.Applicative
 import qualified Data.Attoparsec.ByteString.Lazy as AL
@@ -10,13 +14,14 @@ import qualified Data.ByteString.Lazy as BL
 data LogType =
     EmergeStart
   | EmergeFinish
+  deriving ( Show, Eq, Ord )
 
 
 data LogLine = LogLine
   { logTimestamp :: Int
   , logPackage   :: BS.ByteString
   , logType      :: LogType
-  }
+  } deriving ( Show, Eq, Ord )
 
 
 parseFile :: BL.ByteString -> [LogLine]
@@ -33,9 +38,40 @@ logline = line' <|> toeol *> pure Nothing
   line' = do
     ts <- decimal
     char ':'
-    pkg <- takeWhile1 (not . iseol)
-    eol
-    return $ Just $ LogLine ts pkg EmergeStart
+    skipWhile isSpace
+    (et, pkg) <- emergeType
+    toeol
+    return $ Just $ LogLine ts pkg et
+
+
+emergeType :: Parser (LogType, BS.ByteString)
+emergeType = start <|> finish
+
+
+start :: Parser (LogType, BS.ByteString)
+start = do
+  string ">>> emerge"
+  progress
+  pkg <- takeWhile1 (not . isSpace)
+  return (EmergeStart, pkg)
+
+
+progress :: Parser ()
+progress = do
+  string " ("
+  many1 digit
+  string " of "
+  many1 digit
+  string ") "
+  return ()
+
+
+finish :: Parser (LogType, BS.ByteString)
+finish = do
+  string "::: completed emerge"
+  progress
+  pkg <- takeWhile1 (not . isSpace)
+  return (EmergeFinish, pkg)
 
 
 toeol = skipWhile (not . iseol)
