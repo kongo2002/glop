@@ -1,0 +1,27 @@
+name:                glop
+version:             0.1.0.0
+cabal-version:       >=1.10
+
+synopsis:            gentoo log parser
+description:         gentoo log parser
+
+homepage:            https://github.com/kongo2002/glop/
+license:             Apache-2.0
+license-file:        LICENSE
+
+author:              Gregor Uhlenheuer
+maintainer:          kongo2002@googlemail.com
+copyright:           (c) 2015 Gregor Uhlenheuer
+
+category:            System
+build-type:          Simple
+
+library
+  build-depends:       base >=4.7 && <4.8,
+                       bytestring,
+                       attoparsec >= 0.11 && < 0.13
+
+  exposed-modules:     Data.GLop.Parser
+
+  default-language:    Haskell2010
+  other-extensions:    OverloadedStrings
