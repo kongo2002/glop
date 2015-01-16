@@ -5,6 +5,7 @@ module Data.GLop.Parser
   ) where
 
 import           Control.Applicative
+import           Control.Monad ( mzero )
 import qualified Data.Attoparsec.ByteString.Lazy as AL
 import           Data.Attoparsec.ByteString.Char8
 import qualified Data.ByteString.Char8 as BS
@@ -17,9 +18,15 @@ data LogType =
   deriving ( Show, Eq, Ord )
 
 
+data Package = Package
+  { pkgCategory :: BS.ByteString
+  , pkgName     :: BS.ByteString
+  } deriving ( Show, Eq, Ord )
+
+
 data LogLine = LogLine
   { logTimestamp :: Int
-  , logPackage   :: BS.ByteString
+  , logPackage   :: Package
   , logType      :: LogType
   } deriving ( Show, Eq, Ord )
 
@@ -44,16 +51,44 @@ logline = line' <|> toeol *> pure Nothing
     return $ Just $ LogLine ts pkg et
 
 
-emergeType :: Parser (LogType, BS.ByteString)
+emergeType :: Parser (LogType, Package)
 emergeType = start <|> finish
 
 
-start :: Parser (LogType, BS.ByteString)
+package :: Parser Package
+package = do
+  cat <- takeWhile1 (/= '/')
+  char '/'
+  pkg <- packageName
+  return $ Package cat pkg
+
+
+packageName = do
+  BS.pack <$> many1 (one <|> noDigit)
+ where
+  one = satisfy (notInClass "- \t")
+  noDigit = do
+    char '-'
+    c <- peekChar'
+    if c >= '0' && c <= '9'
+      then mzero
+      else return '-'
+
+
+start :: Parser (LogType, Package)
 start = do
   string ">>> emerge"
   progress
-  pkg <- takeWhile1 (not . isSpace)
+  pkg <- package
   return (EmergeStart, pkg)
+
+
+finish :: Parser (LogType, Package)
+finish = do
+  string "::: completed emerge"
+  progress
+  pkg <- package
+  return (EmergeFinish, pkg)
 
 
 progress :: Parser ()
@@ -66,14 +101,7 @@ progress = do
   return ()
 
 
-finish :: Parser (LogType, BS.ByteString)
-finish = do
-  string "::: completed emerge"
-  progress
-  pkg <- takeWhile1 (not . isSpace)
-  return (EmergeFinish, pkg)
-
-
+toeol :: Parser ()
 toeol = skipWhile (not . iseol)
 
 
