@@ -4,7 +4,7 @@ module Main
 
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as BL
-import           Data.GLop.Parser   ( parseFile )
+import           Data.GLop.Parser   ( parseLines )
 import           System.Environment ( getArgs )
 
 
@@ -21,5 +21,5 @@ getLogFile = do
 main :: IO ()
 main = do
   file <- getLogFile
-  ls <- parseFile <$> BL.readFile file
+  ls <- parseLines <$> BL.readFile file
   print ls

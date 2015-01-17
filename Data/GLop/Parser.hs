@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.GLop.Parser
-  ( parseFile
+  ( parseLines
   ) where
 
 import           Control.Applicative
@@ -31,12 +31,12 @@ data LogLine = LogLine
   } deriving ( Show, Eq, Ord )
 
 
-parseFile :: BL.ByteString -> [LogLine]
-parseFile ls =
+parseLines :: BL.ByteString -> [LogLine]
+parseLines ls =
   case AL.parse (logline <* eol) ls of
     AL.Fail {}           -> []
-    AL.Done ls' (Just l) -> l : parseFile ls'
-    AL.Done ls' _        -> parseFile ls'
+    AL.Done ls' (Just l) -> l : parseLines ls'
+    AL.Done ls' _        -> parseLines ls'
 
 
 logline :: Parser (Maybe LogLine)
