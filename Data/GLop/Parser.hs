@@ -111,3 +111,5 @@ eol = takeWhile1 iseol
 
 iseol :: Char -> Bool
 iseol c = c == '\n' || c == '\r'
+
+-- vim: set et sts=2 sw=2 tw=80:

@@ -23,3 +23,5 @@ main = do
   file <- getLogFile
   ls <- parseLines <$> BL.readFile file
   print ls
+
+-- vim: set et sts=2 sw=2 tw=80:
