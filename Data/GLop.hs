@@ -37,7 +37,7 @@ printEmerge (Emerge start end) = do
   putStr $ show startTime
   putStrLn $ " (" ++ timeString duration ++ ")"
  where
-  startTime = utcToLocalTime utc $ posixSecondsToUTCTime $ fromIntegral start
+  startTime = utcToLocalTime utc (posixSecondsToUTCTime (fromIntegral start))
   duration = end - start
 
 
