@@ -13,9 +13,6 @@ import           Data.GLop.Parser      ( parseLines )
 import           Data.GLop.Types
 
 
-type EmergeMap = M.Map Package [Emerge]
-
-
 aggregate :: BL.ByteString -> EmergeMap
 aggregate = aggregateLines . calcDiffs . parseLines
 
