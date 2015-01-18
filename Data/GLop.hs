@@ -10,7 +10,7 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as M
 
 
-type EmergeMap = M.Map Package [Int]
+type EmergeMap = M.Map Package [Emerge]
 
 
 aggregate :: BL.ByteString -> EmergeMap
@@ -22,11 +22,14 @@ printMap m =
   mapM_ (putStrLn . toString) $ M.toList m
  where
   toString (p, ts) =
-    BS.unpack (pkgCategory p) ++
-    "/" ++
-    BS.unpack (pkgName p) ++
+    printPackage p ++
     "\n  " ++
     timeString (average ts)
+
+
+printPackage :: Package -> String
+printPackage p =
+  BS.unpack (pkgCategory p) ++ "/" ++ BS.unpack (pkgName p)
 
 
 timeString :: Int -> String
@@ -38,11 +41,15 @@ timeString x
   secs = x `mod` 60
 
 
-average :: [Int] -> Int
-average ls = sum ls `div` length ls
+average :: [Emerge] -> Int
+average ls = sum' `div` len
+ where
+  sum' = sum $ map diff ls
+  len = length ls
+  diff (Emerge s e) = e - s
 
 
-aggregateLines :: [(Package, Int)] -> EmergeMap
+aggregateLines :: [(Package, Emerge)] -> EmergeMap
 aggregateLines =
   foldr go M.empty
  where
@@ -52,15 +59,15 @@ aggregateLines =
   combine _ _ = fail "captain! we've been hit"
 
 
-calcDiffs :: [LogLine] -> [(Package, Int)]
+calcDiffs :: [LogLine] -> [(Package, Emerge)]
 calcDiffs []     = []
 calcDiffs (x:xs) =
   snd $ foldr go (x, []) xs
  where
   go line (lst, ls')
     | logPackage line == logPackage lst =
-      let diff = logTimestamp lst - logTimestamp line
-      in (line, (logPackage line, diff):ls')
+      let emerge = Emerge (logTimestamp line) (logTimestamp lst)
+      in (line, (logPackage line, emerge):ls')
     | otherwise = (line, ls')
 
 

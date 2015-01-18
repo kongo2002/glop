@@ -9,6 +9,9 @@ data LogType =
   deriving ( Show, Eq, Ord )
 
 
+data Emerge = Emerge Int Int
+
+
 data Package = Package
   { pkgCategory :: BS.ByteString
   , pkgName     :: BS.ByteString
