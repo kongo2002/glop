@@ -31,8 +31,8 @@ printMap m =
 
 timeString :: Int -> String
 timeString x
-  | x < 60    = show x ++ "s"
-  | otherwise = show mins ++ "m " ++ show secs ++ "s"
+  | x < 60    = show x ++ " sec"
+  | otherwise = show mins ++ " min " ++ show secs ++ " sec"
  where
   mins = x `div` 60
   secs = x `mod` 60
