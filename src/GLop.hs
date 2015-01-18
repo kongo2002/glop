@@ -4,7 +4,7 @@ module Main
 
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as BL
-import           Data.GLop.Parser   ( parseLines )
+import           Data.GLop          ( aggregate, printMap )
 import           System.Environment ( getArgs )
 
 
@@ -21,7 +21,7 @@ getLogFile = do
 main :: IO ()
 main = do
   file <- getLogFile
-  ls <- parseLines <$> BL.readFile file
-  print ls
+  ls <- aggregate <$> BL.readFile file
+  printMap ls
 
 -- vim: set et sts=2 sw=2 tw=80:

@@ -19,9 +19,12 @@ build-type:          Simple
 library
   build-depends:       base >= 4.7 && < 4.8,
                        bytestring,
+                       containers,
                        attoparsec >= 0.11 && < 0.13
 
-  exposed-modules:     Data.GLop.Parser
+  exposed-modules:     Data.GLop
+                       Data.GLop.Types
+                       Data.GLop.Parser
 
   default-language:    Haskell2010
   other-extensions:    OverloadedStrings
