@@ -3,11 +3,14 @@ module Data.GLop
   , printMap
   ) where
 
-import           Data.GLop.Parser ( parseLines )
-import           Data.GLop.Types
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as M
+import           Data.Time.Clock.POSIX ( posixSecondsToUTCTime )
+import           Data.Time.LocalTime   ( utcToLocalTime, utc )
+
+import           Data.GLop.Parser      ( parseLines )
+import           Data.GLop.Types
 
 
 type EmergeMap = M.Map Package [Emerge]
@@ -19,12 +22,23 @@ aggregate = aggregateLines . calcDiffs . parseLines
 
 printMap :: EmergeMap -> IO ()
 printMap m =
-  mapM_ (putStrLn . toString) $ M.toList m
+  mapM_ toString $ M.toList m
  where
-  toString (p, ts) =
-    printPackage p ++
-    "\n  " ++
-    timeString (average ts)
+  toString (p, ts) = do
+    putStrLn $ printPackage p
+    mapM_ printEmerge ts
+    putStr "  Average: "
+    putStrLn $ timeString (average ts)
+
+
+printEmerge :: Emerge -> IO ()
+printEmerge (Emerge start end) = do
+  putStr "   "
+  putStr $ show startTime
+  putStrLn $ " (" ++ timeString duration ++ ")"
+ where
+  startTime = utcToLocalTime utc $ posixSecondsToUTCTime $ fromIntegral start
+  duration = end - start
 
 
 printPackage :: Package -> String
