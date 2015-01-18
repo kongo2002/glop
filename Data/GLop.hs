@@ -26,11 +26,21 @@ printMap m =
     "/" ++
     BS.unpack (pkgName p) ++
     "\n  " ++
-    show (average ts)
+    timeString (average ts)
+
+
+timeString :: Int -> String
+timeString x
+  | x < 60    = show x ++ "s"
+  | otherwise = show mins ++ "m " ++ show secs ++ "s"
+ where
+  mins = x `div` 60
+  secs = x `mod` 60
 
 
 average :: [Int] -> Int
 average ls = sum ls `div` length ls
+
 
 aggregateLines :: [(Package, Int)] -> EmergeMap
 aggregateLines =
