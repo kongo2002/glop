@@ -5,26 +5,78 @@ module Main
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as BL
 import           Data.GLop          ( aggregate, printMap )
+import           System.Console.GetOpt
 import           System.Environment ( getArgs )
+import           System.Exit        ( exitSuccess )
 import           System.IO          ( stdin )
 
 
-getLogFile :: IO BL.ByteString
-getLogFile = do
-  args <- getArgs
-  case args of
-    (f:_) ->
-      case f of
-        "-" -> BL.hGetContents stdin
-        _   -> BL.readFile f
-    _     -> BL.readFile logfile
+data Options = Options
+  { oFile    :: Maybe String
+  , oInput   :: IO BL.ByteString
+  , oPackage :: [String]
+  }
+
+
+defOptions :: Options
+defOptions = Options
+  { oFile      = Nothing
+  , oInput     = BL.readFile "/var/log/emerge.log"
+  , oPackage   = []
+  }
+
+
+getStdIn :: IO BL.ByteString
+getStdIn = BL.hGetContents stdin
+
+
+options :: [ OptDescr (Options -> IO Options) ]
+options =
+  [ Option "f" ["file"]
+    (ReqArg
+      (\arg opt -> return opt { oFile = Just arg, oInput = BL.readFile arg })
+      "FILE")
+    "emerge log file"
+
+  , Option "V" ["version"]
+    (NoArg
+      (\_ -> putStrLn "glop-0.0.1" >> exitSuccess))
+    "print version"
+
+  , Option "h" ["help"]
+    (NoArg
+      (\_ -> putStr usage >> exitSuccess))
+    "show this help"
+  ]
+
+
+usage :: String
+usage = usageInfo "Usage: glop [PACKAGE...]\n" options
+
+
+parseOpts :: [String] -> IO Options
+parseOpts args =
+  case getOpt Permute options args of
+    -- successful
+    (o, ps, []) ->
+      foldl (>>=) (return defOptions) o >>= pos ps
+    -- errors
+    (_, _, es) -> ioError (userError (concat es ++ usage))
  where
-  logfile = "/var/log/emerge.log"
+  -- process positional arguments
+  pos [] opts = return opts
+  pos (x:xs) opts =
+    case x of
+      "-" -> pos xs opts { oInput = getStdIn, oFile = Nothing }
+      _ ->
+        let pkgs = oPackage opts
+        in pos xs opts { oPackage = x:pkgs }
 
 
 main :: IO ()
 main = do
-  ls <- aggregate <$> getLogFile
-  printMap ls
+  opts <- parseOpts =<< getArgs
+  aggregate <$> oInput opts >>= printMap
+
 
 -- vim: set et sts=2 sw=2 tw=80:
