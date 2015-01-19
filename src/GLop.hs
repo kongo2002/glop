@@ -78,6 +78,10 @@ usage = usageInfo header options
     , "  nginx              search for package named 'nginx'"
     , "  www-servers/       search for packages in 'www-servers'"
     , "  www-servers/nginx  search for exact match 'www-servers/nginx'"
+    , ""
+    , "Apart from specifying the emerge log file via the -f switch"
+    , "you may supply the log contents via STDIN by appending a dash:"
+    , "  zcat /tmp/emerge.log.gz | glop -"
     ]
 
 
