@@ -85,10 +85,13 @@ calcDiffs (x:xs) =
   snd $ foldr go (x, []) xs
  where
   go line (lst, ls')
-    | logPackage line == logPackage lst =
+    | isEmerge line lst =
       let emerge = Emerge (logTimestamp line) (logTimestamp lst)
       in (line, (logPackage line, emerge):ls')
     | otherwise = (line, ls')
+
+  isEmerge (LogLine _ p EmergeStart) (LogLine _ p' EmergeFinish) = p == p'
+  isEmerge _ _ = False
 
 
 -- vim: set et sts=2 sw=2 tw=80:
