@@ -4,12 +4,14 @@ module Main
 
 import           Control.Applicative
 import qualified Data.ByteString.Lazy as BL
-import           Data.GLop          ( aggregate, printMap )
+import           Data.Version       ( showVersion )
 import           System.Console.GetOpt
 import           System.Environment ( getArgs )
 import           System.Exit        ( exitSuccess )
 import           System.IO          ( stdin )
 
+import           Data.GLop          ( aggregate, printMap )
+import           Paths_glop
 
 data Options = Options
   { oFile    :: Maybe String
@@ -26,6 +28,18 @@ defOptions = Options
   }
 
 
+name :: String
+name = "glop"
+
+
+versionStr :: String
+versionStr = showVersion version
+
+
+fullName :: String
+fullName = name ++ "-" ++ versionStr
+
+
 getStdIn :: IO BL.ByteString
 getStdIn = BL.hGetContents stdin
 
@@ -40,7 +54,7 @@ options =
 
   , Option "V" ["version"]
     (NoArg
-      (\_ -> putStrLn "glop-0.0.1" >> exitSuccess))
+      (\_ -> putStrLn fullName >> exitSuccess))
     "print version"
 
   , Option "h" ["help"]
