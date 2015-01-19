@@ -11,7 +11,7 @@ import           System.Exit        ( exitSuccess )
 import           System.IO          ( stdin )
 
 import           Data.GLop          ( aggregate, printMap )
-import           Paths_glop
+import           Paths_glop         ( version )
 
 data Options = Options
   { oFile    :: Maybe String
