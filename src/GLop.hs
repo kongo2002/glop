@@ -69,7 +69,16 @@ options =
 
 
 usage :: String
-usage = usageInfo "Usage: glop [PACKAGE...]\n" options
+usage = usageInfo header options
+ where
+  header = unlines
+    [ "Usage: glop [OPTIONS] [PACKAGE...]"
+    , ""
+    , "You may specify PACKAGE in one of three forms:"
+    , "  nginx              search for package named 'nginx'"
+    , "  www-servers/       search for packages in 'www-servers'"
+    , "  www-servers/nginx  search for exact match 'www-servers/nginx'"
+    ]
 
 
 parseOpts :: [String] -> IO Options
