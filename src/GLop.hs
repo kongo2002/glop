@@ -3,6 +3,7 @@ module Main
   ) where
 
 import           Control.Applicative
+import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
 import           Data.Version       ( showVersion )
 import           System.Console.GetOpt
@@ -11,12 +12,15 @@ import           System.Exit        ( exitSuccess )
 import           System.IO          ( stdin )
 
 import           Data.GLop          ( aggregate, printMap )
+import           Data.GLop.Types
+
 import           Paths_glop         ( version )
+
 
 data Options = Options
   { oFile    :: Maybe String
   , oInput   :: IO BL.ByteString
-  , oPackage :: [String]
+  , oPackage :: [Package]
   }
 
 
@@ -84,13 +88,22 @@ parseOpts args =
       "-" -> pos xs opts { oInput = getStdIn, oFile = Nothing }
       _ ->
         let pkgs = oPackage opts
-        in pos xs opts { oPackage = x:pkgs }
+        in pos xs opts { oPackage = pkg x : pkgs }
+
+  pkg str =
+    case break (== '/') str of
+      -- just a category
+      (c, "/")  -> Package (BS.pack c) BS.empty
+      -- category + package
+      (c, _:xs) -> Package (BS.pack c) (BS.pack xs)
+      -- just a package name otherwise
+      (p, _)    -> Package BS.empty (BS.pack p)
 
 
 main :: IO ()
 main = do
   opts <- parseOpts =<< getArgs
-  aggregate <$> oInput opts >>= printMap
+  aggregate <$> oInput opts >>= printMap (oPackage opts)
 
 
 -- vim: set et sts=2 sw=2 tw=80:

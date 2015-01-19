@@ -17,15 +17,24 @@ aggregate :: BL.ByteString -> EmergeMap
 aggregate = aggregateLines . calcDiffs . parseLines
 
 
-printMap :: EmergeMap -> IO ()
-printMap m =
-  mapM_ toString $ M.toList m
+printMap :: [Package] -> EmergeMap -> IO ()
+printMap ps m =
+  mapM_ toString $ filter byPackages $ M.toList m
  where
   toString (p, ts) = do
     putStrLn $ printPackage p
     mapM_ printEmerge ts
     putStr "  Average: "
     putStrLn $ timeString (average ts)
+
+  byPackages pkg
+    | null ps = True
+    | otherwise = any (pkgMatches (fst pkg)) ps
+
+
+pkgMatches :: Package -> Package -> Bool
+pkgMatches (Package c p) (Package c' p') =
+  (BS.null c' || c' == c) && (BS.null p' || p' == p)
 
 
 printEmerge :: Emerge -> IO ()
