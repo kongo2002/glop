@@ -6,6 +6,8 @@ module Data.GLop
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as M
+import           Data.List             ( sortBy )
+import           Data.Function         ( on )
 import           Data.Time.Clock.POSIX ( posixSecondsToUTCTime )
 import           Data.Time.LocalTime   ( utcToLocalTime, utc )
 
@@ -14,7 +16,7 @@ import           Data.GLop.Types
 
 
 aggregate :: BL.ByteString -> EmergeMap
-aggregate = aggregateLines . calcDiffs . parseLines
+aggregate = calcDiffs . parseLines
 
 
 printMap :: [Package] -> EmergeMap -> IO ()
@@ -69,29 +71,37 @@ average ls = sum' `div` len
   diff (Emerge s e) = e - s
 
 
-aggregateLines :: [(Package, Emerge)] -> EmergeMap
-aggregateLines =
+toMap :: [(Package, LogLine)] -> M.Map Package [LogLine]
+toMap =
   foldr go M.empty
  where
-  go (p, diff) =
-    M.insertWith combine p [diff]
-  combine [x] xs = x:xs
-  combine _ _ = fail "captain! we've been hit"
+  go (p, diff) = M.insertWith ((:) . head) p [diff]
 
 
-calcDiffs :: [LogLine] -> [(Package, Emerge)]
-calcDiffs []     = []
-calcDiffs (x:xs) =
-  snd $ foldr go (x, []) xs
+calcDiffs :: [LogLine] -> EmergeMap
+calcDiffs xs =
+  M.filter (not . null) $ M.map (aggregate' . ordered) grouped
  where
-  go line (lst, ls')
-    | isEmerge line lst =
-      let emerge = Emerge (logTimestamp line) (logTimestamp lst)
-      in (line, (logPackage line, emerge):ls')
-    | otherwise = (line, ls')
+  withKey f x = (f x, x)
+  grouped     = toMap $ map (withKey logPackage) xs
+  ordered     = sortBy (flip compare `on` logTimestamp)
 
-  isEmerge (LogLine _ p EmergeStart) (LogLine _ p' EmergeFinish) = p == p'
-  isEmerge _ _ = False
+  aggregate' :: [LogLine] -> [Emerge]
+  aggregate' []     = []
+  aggregate' ls@(l:_) =
+    snd $ foldr go (l, []) ls
+   where
+    go l (lst, ls)
+      | isEmerge lst l = (l, Emerge (logTimestamp lst) (logTimestamp l) : ls)
+      | otherwise      = (l, ls)
+
+    isEmerge last line =
+      let lastType = logType last
+          lineType = logType line
+
+      in lastType == EmergeStart &&
+         lineType == EmergeFinish &&
+         logProgress last == logProgress line
 
 
 -- vim: set et sts=2 sw=2 tw=80:

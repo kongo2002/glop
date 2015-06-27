@@ -22,6 +22,7 @@ data Package = Package
 data LogLine = LogLine
   { logTimestamp :: Int
   , logPackage   :: Package
+  , logProgress  :: (Int, Int)
   , logType      :: LogType
   } deriving ( Show, Eq, Ord )
 

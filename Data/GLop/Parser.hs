@@ -29,12 +29,12 @@ logline = line' <|> toeol *> pure Nothing
     ts <- decimal
     char ':'
     skipWhile isSpace
-    (et, pkg) <- emergeType
+    (et, prog, pkg) <- emergeType
     toeol
-    return $ Just $ LogLine ts pkg et
+    return $ Just $ LogLine ts pkg prog et
 
 
-emergeType :: Parser (LogType, Package)
+emergeType :: Parser (LogType, (Int, Int), Package)
 emergeType = start <|> finish
 
 
@@ -46,42 +46,42 @@ package = do
   return $ Package cat pkg
 
 
-packageName = do
+packageName =
   BS.pack <$> many1 (one <|> noDigit)
  where
   one = satisfy (notInClass "- \t")
   noDigit = do
     char '-'
     c <- peekChar'
-    if c >= '0' && c <= '9'
+    if isDigit c
       then mzero
       else return '-'
 
 
-start :: Parser (LogType, Package)
+start :: Parser (LogType, (Int, Int), Package)
 start = do
   string ">>> emerge"
-  progress
+  prog <- progress
   pkg <- package
-  return (EmergeStart, pkg)
+  return (EmergeStart, prog, pkg)
 
 
-finish :: Parser (LogType, Package)
+finish :: Parser (LogType, (Int, Int), Package)
 finish = do
   string "::: completed emerge"
-  progress
+  prog <- progress
   pkg <- package
-  return (EmergeFinish, pkg)
+  return (EmergeFinish, prog, pkg)
 
 
-progress :: Parser ()
+progress :: Parser (Int, Int)
 progress = do
   string " ("
-  many1 digit
+  x <- decimal
   string " of "
-  many1 digit
+  y <- decimal
   string ") "
-  return ()
+  return (x, y)
 
 
 toeol :: Parser ()
