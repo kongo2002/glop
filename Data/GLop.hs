@@ -1,6 +1,8 @@
 module Data.GLop
   ( aggregate
+  , getCurrent
   , printMap
+  , printCurrent
   ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -8,7 +10,9 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as M
 import           Data.List             ( sortBy )
 import           Data.Function         ( on )
-import           Data.Time.Clock.POSIX ( posixSecondsToUTCTime )
+import           Data.Time.Clock       ( getCurrentTime )
+import           Data.Time.Clock.POSIX ( posixSecondsToUTCTime
+                                       , utcTimeToPOSIXSeconds )
 import           Data.Time.LocalTime   ( utcToLocalTime, utc )
 
 import           Data.GLop.Parser      ( parseLines )
@@ -17,6 +21,40 @@ import           Data.GLop.Types
 
 aggregate :: BL.ByteString -> EmergeMap
 aggregate = calcDiffs . parseLines
+
+
+getCurrent :: BL.ByteString -> Maybe (LogLine, EmergeMap)
+getCurrent input = do
+  started <- lastStarted lines'
+  return (started, calcDiffs lines')
+ where
+  lines' = parseLines input
+  last'  = last lines'
+
+  lastStarted [] = Nothing
+  lastStarted xs =
+    case logType last' of
+      EmergeStart -> Just last'
+      _           -> Nothing
+
+
+printCurrent :: Maybe (LogLine, EmergeMap) -> IO ()
+printCurrent Nothing = putStrLn "no current emerge ongoing"
+printCurrent (Just (l, m)) = do
+  now <- getCurrentTime
+  putStrLn $ printPackage pkg
+  case M.lookup pkg m of
+    Just ts -> do
+      putStrLn $ "  running: " ++ timeString elap
+      if elap >= avg
+        then putStrLn "  ETA:     just now"
+        else putStrLn $ "  ETA:     " ++ timeString (avg - elap)
+     where
+      avg  = average ts
+      elap = truncate (utcTimeToPOSIXSeconds now) - logTimestamp l
+    Nothing -> putStrLn "  ETA: unknown"
+ where
+  pkg = logPackage l
 
 
 printMap :: [Package] -> EmergeMap -> IO ()

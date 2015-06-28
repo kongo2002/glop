@@ -11,7 +11,7 @@ import           System.Environment ( getArgs )
 import           System.Exit        ( exitSuccess )
 import           System.IO          ( stdin )
 
-import           Data.GLop          ( aggregate, printMap )
+import           Data.GLop
 import           Data.GLop.Types
 
 import           Paths_glop         ( version )
@@ -20,6 +20,7 @@ import           Paths_glop         ( version )
 data Options = Options
   { oFile    :: Maybe String
   , oInput   :: IO BL.ByteString
+  , oCurrent :: Bool
   , oPackage :: [Package]
   }
 
@@ -28,6 +29,7 @@ defOptions :: Options
 defOptions = Options
   { oFile      = Nothing
   , oInput     = BL.readFile "/var/log/emerge.log"
+  , oCurrent   = False
   , oPackage   = []
   }
 
@@ -55,6 +57,11 @@ options =
       (\arg opt -> return opt { oFile = Just arg, oInput = BL.readFile arg })
       "FILE")
     "emerge log file"
+
+  , Option "c" []
+    (NoArg
+      (\opt -> return opt { oCurrent = True }))
+    "show current emerge's progress"
 
   , Option "V" ["version"]
     (NoArg
@@ -116,7 +123,9 @@ parseOpts args =
 main :: IO ()
 main = do
   opts <- parseOpts =<< getArgs
-  aggregate <$> oInput opts >>= printMap (oPackage opts)
+  if oCurrent opts
+    then getCurrent <$> oInput opts >>= printCurrent
+    else aggregate <$> oInput opts >>= printMap (oPackage opts)
 
 
 -- vim: set et sts=2 sw=2 tw=80:
