@@ -122,7 +122,24 @@ calcDiffs xs =
  where
   withKey f x = (f x, x)
   grouped     = toMap $ map (withKey logPackage) xs
-  ordered     = sortBy (flip compare `on` logTimestamp)
+  ordered     = sortBy cmpLine
+
+  -- at first we sort by the timestamp of the operation and
+  -- after that we look at the progress value(s) meaning:
+  --   (1 of 3) is less than (2 of 3)
+  --
+  -- this is important as it is possible to find multiple
+  -- entries with the same timestamp value
+  cmpLine a b
+    | astamp > bstamp = LT
+    | astamp < bstamp = GT
+    | otherwise =
+      let aprog = fst $ logProgress a
+          bprog = fst $ logProgress b
+      in  compare bprog aprog
+   where
+    astamp = logTimestamp a
+    bstamp = logTimestamp b
 
   aggregate' :: [LogLine] -> [Emerge]
   aggregate' []     = []
