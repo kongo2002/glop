@@ -1,8 +1,10 @@
 module Data.GLop
   ( aggregate
   , getCurrent
-  , printMap
+  , getLast
   , printCurrent
+  , printLast
+  , printMap
   ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -23,6 +25,16 @@ aggregate :: BL.ByteString -> EmergeMap
 aggregate = calcDiffs . parseLines
 
 
+getLast :: BL.ByteString -> [(Package, Emerge)]
+getLast =
+  sortBy comp . M.foldlWithKey' go [] . aggregate
+ where
+  comp = compare `on` (toTime . snd)
+  toTime (Emerge _ t) = t
+
+  go xs p es = xs ++ map (\e -> (p, e)) es
+
+
 getCurrent :: BL.ByteString -> Maybe (LogLine, EmergeMap)
 getCurrent input = do
   started <- lastStarted lines'
@@ -36,6 +48,15 @@ getCurrent input = do
     case logType last' of
       EmergeStart -> Just last'
       _           -> Nothing
+
+
+printLast :: [(Package, Emerge)] -> IO ()
+printLast =
+  mapM_ print
+ where
+  print (pkg, emerge) = do
+    putStrLn $ printPackage pkg
+    printEmerge emerge
 
 
 printCurrent :: Maybe (LogLine, EmergeMap) -> IO ()

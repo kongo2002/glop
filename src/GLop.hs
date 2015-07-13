@@ -8,8 +8,8 @@ import qualified Data.ByteString.Lazy as BL
 import           Data.Version       ( showVersion )
 import           System.Console.GetOpt
 import           System.Environment ( getArgs )
-import           System.Exit        ( exitSuccess )
-import           System.IO          ( stdin )
+import           System.Exit        ( exitSuccess, exitFailure )
+import           System.IO          ( stdin, hPutStrLn, stderr )
 
 import           Data.GLop
 import           Data.GLop.Types
@@ -21,6 +21,7 @@ data Options = Options
   { oFile    :: Maybe String
   , oInput   :: IO BL.ByteString
   , oCurrent :: Bool
+  , oLast    :: Bool
   , oPackage :: [Package]
   }
 
@@ -30,6 +31,7 @@ defOptions = Options
   { oFile      = Nothing
   , oInput     = BL.readFile "/var/log/emerge.log"
   , oCurrent   = False
+  , oLast      = False
   , oPackage   = []
   }
 
@@ -62,6 +64,11 @@ options =
     (NoArg
       (\opt -> return opt { oCurrent = True }))
     "show current emerge's progress"
+
+  , Option "l" []
+    (NoArg
+      (\opt -> return opt { oLast = True }))
+    "display last emerged packages"
 
   , Option "V" ["version"]
     (NoArg
@@ -97,9 +104,9 @@ parseOpts args =
   case getOpt Permute options args of
     -- successful
     (o, ps, []) ->
-      foldl (>>=) (return defOptions) o >>= pos ps
+      foldl (>>=) (return defOptions) o >>= pos ps >>= validate
     -- errors
-    (_, _, es) -> ioError (userError (concat es ++ usage))
+    (_, _, es) -> err $ concat es
  where
   -- process positional arguments
   pos [] opts = return opts
@@ -109,6 +116,13 @@ parseOpts args =
       _ ->
         let pkgs = oPackage opts
         in pos xs opts { oPackage = pkg x : pkgs }
+
+  validate o
+    | oCurrent o && oLast o = err "you must not use -c and -l at the same time\n"
+    | otherwise             = return o
+
+  err msg = let msg' = "error: " ++ msg ++ "\n" ++ usage
+            in  hPutStrLn stderr msg' >> exitFailure
 
   pkg str =
     case break (== '/') str of
@@ -121,11 +135,15 @@ parseOpts args =
 
 
 main :: IO ()
-main = do
-  opts <- parseOpts =<< getArgs
-  if oCurrent opts
-    then getCurrent <$> oInput opts >>= printCurrent
-    else aggregate <$> oInput opts >>= printMap (oPackage opts)
+main =
+  operate =<< parseOpts =<< getArgs
+ where
+  operate opts
+    | oCurrent opts = getCurrent <$> input >>= printCurrent
+    | oLast opts    = getLast    <$> input >>= printLast
+    | otherwise     = aggregate  <$> input >>= printMap (oPackage opts)
+   where
+    input = oInput opts
 
 
 -- vim: set et sts=2 sw=2 tw=80:
