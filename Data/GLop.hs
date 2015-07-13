@@ -55,7 +55,7 @@ printLast =
   mapM_ print
  where
   print (pkg, emerge) = do
-    putStrLn $ printPackage pkg
+    printPackage pkg
     printEmerge emerge
 
 
@@ -63,7 +63,7 @@ printCurrent :: Maybe (LogLine, EmergeMap) -> IO ()
 printCurrent Nothing = putStrLn "no current emerge ongoing"
 printCurrent (Just (l, m)) = do
   now <- getCurrentTime
-  putStrLn $ printPackage pkg
+  printPackage pkg
   case M.lookup pkg m of
     Just ts -> do
       putStrLn $ "  running: " ++ timeString elap
@@ -83,7 +83,7 @@ printMap ps m =
   mapM_ toString $ filter byPackages $ M.toList m
  where
   toString (p, ts) = do
-    putStrLn $ printPackage p
+    printPackage p
     mapM_ printEmerge ts
     putStr "  Average: "
     putStrLn $ timeString (average ts)
@@ -108,9 +108,9 @@ printEmerge (Emerge start end) = do
   duration = end - start
 
 
-printPackage :: Package -> String
+printPackage :: Package -> IO ()
 printPackage p =
-  BS.unpack (pkgCategory p) ++ "/" ++ BS.unpack (pkgName p)
+  putStrLn $ BS.unpack (pkgCategory p) ++ "/" ++ BS.unpack (pkgName p)
 
 
 timeString :: Int -> String
