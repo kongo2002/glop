@@ -2,9 +2,11 @@ module Data.GLop
   ( aggregate
   , getCurrent
   , getLast
+  , getRsync
   , printCurrent
   , printLast
   , printMap
+  , printRsyncs
   ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -17,12 +19,16 @@ import           Data.Time.Clock.POSIX ( posixSecondsToUTCTime
                                        , utcTimeToPOSIXSeconds )
 import           Data.Time.LocalTime   ( utcToLocalTime, utc )
 
-import           Data.GLop.Parser      ( parseLines )
+import           Data.GLop.Parser
 import           Data.GLop.Types
 
 
 aggregate :: BL.ByteString -> EmergeMap
 aggregate = calcDiffs . parseLines
+
+
+getRsync :: BL.ByteString -> [RSync]
+getRsync = aggregateRsyncs . parseRsync
 
 
 getLast :: BL.ByteString -> [(Package, Emerge)]
@@ -101,11 +107,17 @@ pkgMatches (Package c p) (Package c' p') =
 printEmerge :: Emerge -> IO ()
 printEmerge (Emerge start end) = do
   putStr "   "
-  putStr $ show startTime
+  printTime start
   putStrLn $ " (" ++ timeString duration ++ ")"
  where
-  startTime = utcToLocalTime utc (posixSecondsToUTCTime (fromIntegral start))
   duration = end - start
+
+
+printTime :: Int -> IO ()
+printTime time =
+  putStr $ show time'
+ where
+  time' = utcToLocalTime utc (posixSecondsToUTCTime (fromIntegral time))
 
 
 printPackage :: Package -> IO ()
@@ -122,6 +134,20 @@ timeString x
   secs = x `mod` 60
 
 
+printRsyncs :: [RSync] -> IO ()
+printRsyncs = mapM_ printRsync
+
+
+printRsync :: RSync -> IO ()
+printRsync (RSync src f t) = do
+  printTime f
+  putStr ": \n  "
+  BS.putStr src
+  putStrLn $ "\n  " ++ timeString duration
+ where
+  duration = t - f
+
+
 average :: [Emerge] -> Int
 average ls = sum' `div` len
  where
@@ -135,6 +161,20 @@ toMap =
   foldr go M.empty
  where
   go (p, diff) = M.insertWith ((:) . head) p [diff]
+
+
+aggregateRsyncs :: [RSyncLine] -> [RSync]
+aggregateRsyncs [] = []
+aggregateRsyncs ls@(l:_) =
+  snd $ foldr go (l, []) ls
+ where
+  -- because of 'foldr' we are processing the list
+  -- in reverse order
+  go l (lst, ls)
+    | isSync lst l = (l, RSync (rsSource l) (rsTime l) (rsTime lst) : ls)
+    | otherwise    = (l, ls)
+
+  isSync a b = rsType a == RSyncEnd && rsType b == RSyncStart
 
 
 calcDiffs :: [LogLine] -> EmergeMap

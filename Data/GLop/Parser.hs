@@ -2,6 +2,7 @@
 
 module Data.GLop.Parser
   ( parseLines
+  , parseRsync
   ) where
 
 import           Control.Applicative
@@ -14,21 +15,48 @@ import qualified Data.ByteString.Lazy as BL
 import           Data.GLop.Types
 
 
-parseLines :: BL.ByteString -> [LogLine]
-parseLines ls =
-  case AL.parse (logline <* eol) ls of
+parse' parser ls =
+  case AL.parse (parser <* eol) ls of
     AL.Fail {}           -> []
-    AL.Done ls' (Just l) -> l : parseLines ls'
-    AL.Done ls' _        -> parseLines ls'
+    AL.Done ls' (Just l) -> l : parse' parser ls'
+    AL.Done ls' _        -> parse' parser ls'
+
+
+parseLines :: BL.ByteString -> [LogLine]
+parseLines = parse' logline
+
+
+parseRsync :: BL.ByteString -> [RSyncLine]
+parseRsync = parse' rsync
+
+
+rsync :: Parser (Maybe RSyncLine)
+rsync = rsync' <|> toeol *> pure Nothing
+ where
+  rsync' = do
+    ts <- timestamp
+    (t, src) <- rsyncType
+    toeol
+    return $ Just $ RSyncLine ts src t
+
+
+rsyncType :: Parser (RSyncType, BS.ByteString)
+rsyncType = rsStart <|> rsEnd
+ where
+  rsStart = do
+    string ">>> Starting rsync with "
+    source <- takeWhile1 (not . isSpace)
+    return (RSyncStart, source)
+
+  rsEnd =
+    string "=== Sync completed" >> return (RSyncEnd, BS.empty)
 
 
 logline :: Parser (Maybe LogLine)
 logline = line' <|> toeol *> pure Nothing
  where
   line' = do
-    ts <- decimal
-    char ':'
-    skipWhile isSpace
+    ts <- timestamp
     (et, prog, pkg) <- emergeType
     toeol
     return $ Just $ LogLine ts pkg prog et
@@ -36,6 +64,14 @@ logline = line' <|> toeol *> pure Nothing
 
 emergeType :: Parser (LogType, (Int, Int), Package)
 emergeType = start <|> finish
+
+
+timestamp :: Parser Int
+timestamp = do
+  ts <- decimal
+  char ':'
+  skipWhile isSpace
+  return ts
 
 
 package :: Parser Package

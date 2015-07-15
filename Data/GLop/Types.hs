@@ -30,4 +30,20 @@ data LogLine = LogLine
 type EmergeMap = M.Map Package [Emerge]
 
 
+data RSync = RSync BS.ByteString Int Int
+
+
+data RSyncLine = RSyncLine
+  { rsTime    :: Int
+  , rsSource  :: BS.ByteString
+  , rsType    :: RSyncType
+  } deriving ( Show )
+
+
+data RSyncType =
+    RSyncStart
+  | RSyncEnd
+  deriving ( Show, Eq )
+
+
 -- vim: set et sts=2 sw=2 tw=80:

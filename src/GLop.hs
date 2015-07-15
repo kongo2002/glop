@@ -22,6 +22,7 @@ data Options = Options
   , oInput   :: IO BL.ByteString
   , oCurrent :: Bool
   , oLast    :: Bool
+  , oRsync   :: Bool
   , oPackage :: [Package]
   }
 
@@ -32,6 +33,7 @@ defOptions = Options
   , oInput     = BL.readFile "/var/log/emerge.log"
   , oCurrent   = False
   , oLast      = False
+  , oRsync     = False
   , oPackage   = []
   }
 
@@ -70,6 +72,11 @@ options =
       (\opt -> return opt { oLast = True }))
     "display last emerged packages"
 
+  , Option "s" []
+    (NoArg
+      (\opt -> return opt { oRsync = True }))
+    "display rsync operations"
+
   , Option "V" ["version"]
     (NoArg
       (\_ -> putStrLn fullName >> exitSuccess))
@@ -104,7 +111,7 @@ parseOpts args =
   case getOpt Permute options args of
     -- successful
     (o, ps, []) ->
-      foldl (>>=) (return defOptions) o >>= pos ps >>= validate
+      foldl (>>=) (return defOptions) o >>= pos ps >>= multipleFlags
     -- errors
     (_, _, es) -> err $ concat es
  where
@@ -117,9 +124,12 @@ parseOpts args =
         let pkgs = oPackage opts
         in pos xs opts { oPackage = pkg x : pkgs }
 
-  validate o
-    | oCurrent o && oLast o = err "you must not use -c and -l at the same time\n"
-    | otherwise             = return o
+  multipleFlags o
+    | toggled > 1 = err "you may only use one of '-c', '-l', '-s'\n"
+    | otherwise   = return o
+   where
+    flags   = [oCurrent o, oLast o, oRsync o]
+    toggled = length $ filter id flags
 
   err msg = let msg' = "error: " ++ msg ++ "\n" ++ usage
             in  hPutStrLn stderr msg' >> exitFailure
@@ -141,6 +151,7 @@ main =
   operate opts
     | oCurrent opts = getCurrent <$> input >>= printCurrent
     | oLast opts    = getLast    <$> input >>= printLast
+    | oRsync opts   = getRsync   <$> input >>= printRsyncs
     | otherwise     = aggregate  <$> input >>= printMap (oPackage opts)
    where
     input = oInput opts
