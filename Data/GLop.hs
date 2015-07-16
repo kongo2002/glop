@@ -135,13 +135,22 @@ timeString x
 
 
 printRsyncs :: [RSync] -> IO ()
-printRsyncs = mapM_ printRsync
+printRsyncs [] = putStrLn "no rsync yet"
+printRsyncs rs =
+  let (duration, n, ios) = foldr go (0, 0, []) rs
+      average            = duration `div` n
+  in  sequence_ ios >> putStrLn ("Average: " ++ timeString average)
+ where
+  go sync (d, n, ios) =
+    (d + dur sync, n+1, printRsync sync : ios)
+
+  dur (RSync _ f t) = t - f
 
 
 printRsync :: RSync -> IO ()
 printRsync (RSync src f t) = do
   printTime f
-  putStr ": \n  "
+  putStr "\n  "
   BS.putStr src
   putStrLn $ "\n  " ++ timeString duration
  where
