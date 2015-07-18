@@ -3,10 +3,12 @@ module Data.GLop
   , getCurrent
   , getLast
   , getRsync
+  , getUnmerge
   , printCurrent
   , printLast
   , printMap
-  , printRsyncs
+  , printRsync
+  , printUnmerge
   ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -31,12 +33,16 @@ getRsync :: BL.ByteString -> [RSync]
 getRsync = aggregateRsyncs . parseRsync
 
 
-getLast :: BL.ByteString -> [(Package, Emerge)]
+getUnmerge :: BL.ByteString -> [Unmerge]
+getUnmerge = aggregateUnmerge . parseUnmerge
+
+
+getLast :: BL.ByteString -> [(Package, Operation)]
 getLast =
   sortBy comp . M.foldlWithKey' go [] . aggregate
  where
   comp = compare `on` (toTime . snd)
-  toTime (Emerge _ t) = t
+  toTime (Operation _ t) = t
 
   go xs p es = xs ++ map (\e -> (p, e)) es
 
@@ -51,18 +57,18 @@ getCurrent input = do
 
   lastStarted [] = Nothing
   lastStarted xs =
-    case logType last' of
-      EmergeStart -> Just last'
-      _           -> Nothing
+    case logRange last' of
+      Start -> Just last'
+      _     -> Nothing
 
 
-printLast :: [(Package, Emerge)] -> IO ()
+printLast :: [(Package, Operation)] -> IO ()
 printLast =
   mapM_ print
  where
   print (pkg, emerge) = do
     printPackage pkg
-    printEmerge emerge
+    printOperation emerge
 
 
 printCurrent :: Maybe (LogLine, EmergeMap) -> IO ()
@@ -90,13 +96,26 @@ printMap ps m =
  where
   toString (p, ts) = do
     printPackage p
-    mapM_ printEmerge ts
+    mapM_ printOperation ts
     putStr "  Average: "
     putStrLn $ timeString (average ts)
 
   byPackages pkg
-    | null ps = True
+    | null ps   = True
     | otherwise = any (pkgMatches (fst pkg)) ps
+
+
+printUnmerge :: [Package] -> [Unmerge] -> IO ()
+printUnmerge ps us =
+  mapM_ toString $ filter byPackages us
+ where
+  toString (Unmerge p op) = do
+    printPackage p
+    printOperation op
+
+  byPackages (Unmerge p _)
+    | null ps   = True
+    | otherwise = any (pkgMatches p) ps
 
 
 pkgMatches :: Package -> Package -> Bool
@@ -104,8 +123,8 @@ pkgMatches (Package c p) (Package c' p') =
   (BS.null c' || c' == c) && (BS.null p' || p' == p)
 
 
-printEmerge :: Emerge -> IO ()
-printEmerge (Emerge start end) = do
+printOperation :: Operation -> IO ()
+printOperation (Operation start end) = do
   putStr "   "
   printTime start
   putStrLn $ " (" ++ timeString duration ++ ")"
@@ -134,21 +153,21 @@ timeString x
   secs = x `mod` 60
 
 
-printRsyncs :: [RSync] -> IO ()
-printRsyncs [] = putStrLn "no rsync yet"
-printRsyncs rs =
+printRsync :: [RSync] -> IO ()
+printRsync [] = putStrLn "no rsync yet"
+printRsync rs =
   let (duration, n, ios) = foldr go (0, 0, []) rs
       average            = duration `div` n
   in  sequence_ ios >> putStrLn ("Average: " ++ timeString average)
  where
   go sync (d, n, ios) =
-    (d + dur sync, n+1, printRsync sync : ios)
+    (d + dur sync, n+1, printRsync' sync : ios)
 
   dur (RSync _ f t) = t - f
 
 
-printRsync :: RSync -> IO ()
-printRsync (RSync src f t) = do
+printRsync' :: RSync -> IO ()
+printRsync' (RSync src f t) = do
   printTime f
   putStr "\n  "
   BS.putStr src
@@ -157,12 +176,12 @@ printRsync (RSync src f t) = do
   duration = t - f
 
 
-average :: [Emerge] -> Int
+average :: [Operation] -> Int
 average ls = sum' `div` len
  where
   sum' = sum $ map diff ls
   len = length ls
-  diff (Emerge s e) = e - s
+  diff (Operation s e) = e - s
 
 
 toMap :: [(Package, LogLine)] -> M.Map Package [LogLine]
@@ -172,8 +191,25 @@ toMap =
   go (p, diff) = M.insertWith ((:) . head) p [diff]
 
 
+aggregateUnmerge :: [UnmergeLine] -> [Unmerge]
+aggregateUnmerge []       = []
+aggregateUnmerge ls@(l:_) =
+  snd $ foldr go (l, []) ls
+ where
+  go l (lst, ls)
+    | isUnmerge lst l =
+      let op = Operation (uTime l) (uTime lst)
+      in  (l, Unmerge (uPackage l) op : ls)
+    | otherwise       = (l, ls)
+
+  isUnmerge a b =
+    uType a == End &&
+    uType b == Start &&
+    uPackage a == uPackage b
+
+
 aggregateRsyncs :: [RSyncLine] -> [RSync]
-aggregateRsyncs [] = []
+aggregateRsyncs []       = []
 aggregateRsyncs ls@(l:_) =
   snd $ foldr go (l, []) ls
  where
@@ -183,7 +219,7 @@ aggregateRsyncs ls@(l:_) =
     | isSync lst l = (l, RSync (rsSource l) (rsTime l) (rsTime lst) : ls)
     | otherwise    = (l, ls)
 
-  isSync a b = rsType a == RSyncEnd && rsType b == RSyncStart
+  isSync a b = rsType a == End && rsType b == Start
 
 
 calcDiffs :: [LogLine] -> EmergeMap
@@ -211,21 +247,21 @@ calcDiffs xs =
     astamp = logTimestamp a
     bstamp = logTimestamp b
 
-  aggregate' :: [LogLine] -> [Emerge]
+  aggregate' :: [LogLine] -> [Operation]
   aggregate' []     = []
   aggregate' ls@(l:_) =
     snd $ foldr go (l, []) ls
    where
     go l (lst, ls)
-      | isEmerge lst l = (l, Emerge (logTimestamp lst) (logTimestamp l) : ls)
+      | isEmerge lst l = (l, Operation (logTimestamp lst) (logTimestamp l) : ls)
       | otherwise      = (l, ls)
 
     isEmerge last line =
-      let lastType = logType last
-          lineType = logType line
+      let lastType = logRange last
+          lineType = logRange line
 
-      in lastType == EmergeStart &&
-         lineType == EmergeFinish &&
+      in lastType == Start &&
+         lineType == End &&
          logProgress last == logProgress line
 
 

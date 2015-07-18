@@ -3,6 +3,7 @@
 module Data.GLop.Parser
   ( parseLines
   , parseRsync
+  , parseUnmerge
   ) where
 
 import           Control.Applicative
@@ -30,6 +31,10 @@ parseRsync :: BL.ByteString -> [RSyncLine]
 parseRsync = parse' rsync
 
 
+parseUnmerge :: BL.ByteString -> [UnmergeLine]
+parseUnmerge = parse' unmerge
+
+
 rsync :: Parser (Maybe RSyncLine)
 rsync = rsync' <|> toeol *> pure Nothing
  where
@@ -40,16 +45,40 @@ rsync = rsync' <|> toeol *> pure Nothing
     return $ Just $ RSyncLine ts src t
 
 
-rsyncType :: Parser (RSyncType, BS.ByteString)
+unmerge :: Parser (Maybe UnmergeLine)
+unmerge = unmerge' <|> toeol *> pure Nothing
+ where
+  unmerge' = do
+    ts <- timestamp
+    (t, pkg) <- unmergeType
+    toeol
+    return $ Just $ UnmergeLine ts pkg t
+
+
+unmergeType :: Parser (Range, Package)
+unmergeType = uStart <|> uEnd
+ where
+  uStart = do
+    string "=== Unmerging... ("
+    pkg <- package
+    return (Start, pkg)
+
+  uEnd = do
+    string ">>> unmerge success: "
+    pkg <- package
+    return (End, pkg)
+
+
+rsyncType :: Parser (Range, BS.ByteString)
 rsyncType = rsStart <|> rsEnd
  where
   rsStart = do
     string ">>> Starting rsync with "
     source <- takeWhile1 (not . isSpace)
-    return (RSyncStart, source)
+    return (Start, source)
 
   rsEnd =
-    string "=== Sync completed" >> return (RSyncEnd, BS.empty)
+    string "=== Sync completed" >> return (End, BS.empty)
 
 
 logline :: Parser (Maybe LogLine)
@@ -62,7 +91,7 @@ logline = line' <|> toeol *> pure Nothing
     return $ Just $ LogLine ts pkg prog et
 
 
-emergeType :: Parser (LogType, (Int, Int), Package)
+emergeType :: Parser (Range, (Int, Int), Package)
 emergeType = start <|> finish
 
 
@@ -94,20 +123,20 @@ packageName =
       else return '-'
 
 
-start :: Parser (LogType, (Int, Int), Package)
+start :: Parser (Range, (Int, Int), Package)
 start = do
   string ">>> emerge"
   prog <- progress
   pkg <- package
-  return (EmergeStart, prog, pkg)
+  return (Start, prog, pkg)
 
 
-finish :: Parser (LogType, (Int, Int), Package)
+finish :: Parser (Range, (Int, Int), Package)
 finish = do
   string "::: completed emerge"
   prog <- progress
   pkg <- package
-  return (EmergeFinish, prog, pkg)
+  return (End, prog, pkg)
 
 
 progress :: Parser (Int, Int)

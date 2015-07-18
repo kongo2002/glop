@@ -23,6 +23,7 @@ data Options = Options
   , oCurrent :: Bool
   , oLast    :: Bool
   , oRsync   :: Bool
+  , oUnmerge :: Bool
   , oPackage :: [Package]
   }
 
@@ -34,6 +35,7 @@ defOptions = Options
   , oCurrent   = False
   , oLast      = False
   , oRsync     = False
+  , oUnmerge   = False
   , oPackage   = []
   }
 
@@ -76,6 +78,11 @@ options =
     (NoArg
       (\opt -> return opt { oRsync = True }))
     "display rsync operations"
+
+  , Option "u" []
+    (NoArg
+      (\opt -> return opt { oUnmerge = True }))
+    "display unmerged packages"
 
   , Option "V" ["version"]
     (NoArg
@@ -125,10 +132,10 @@ parseOpts args =
         in pos xs opts { oPackage = pkg x : pkgs }
 
   multipleFlags o
-    | toggled > 1 = err "you may only use one of '-c', '-l', '-s'\n"
+    | toggled > 1 = err "you may only use one of '-c', '-l', '-s', '-u'\n"
     | otherwise   = return o
    where
-    flags   = [oCurrent o, oLast o, oRsync o]
+    flags   = [oCurrent o, oLast o, oRsync o, oUnmerge o]
     toggled = length $ filter id flags
 
   err msg = let msg' = "error: " ++ msg ++ "\n" ++ usage
@@ -151,10 +158,12 @@ main =
   operate opts
     | oCurrent opts = getCurrent <$> input >>= printCurrent
     | oLast opts    = getLast    <$> input >>= printLast
-    | oRsync opts   = getRsync   <$> input >>= printRsyncs
-    | otherwise     = aggregate  <$> input >>= printMap (oPackage opts)
+    | oRsync opts   = getRsync   <$> input >>= printRsync
+    | oUnmerge opts = getUnmerge <$> input >>= printUnmerge pkgFilter
+    | otherwise     = aggregate  <$> input >>= printMap pkgFilter
    where
-    input = oInput opts
+    pkgFilter = oPackage opts
+    input     = oInput opts
 
 
 -- vim: set et sts=2 sw=2 tw=80:
