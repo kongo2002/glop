@@ -44,6 +44,7 @@ you may supply the log contents via STDIN by appending a dash:
   -c                    show current emerge's progress
   -l                    display last emerged packages
   -s                    display rsync operations
+  -u                    display unmerged packages
   -V       --version    print version
   -h       --help       show this help
 ~~~
@@ -97,6 +98,18 @@ $ glop -c
 dev-haskell/cabal
   running: 20 sec
   ETA:     33 sec
+~~~
+
+
+### Unmerges
+
+The `-u` switch returns the list of unmerge operations for the selected package
+or category:
+
+~~~
+$ glop cabal -u
+dev-haskell/cabal
+    2015-06-24 21:47:56 (1 sec)
 ~~~
 
 
