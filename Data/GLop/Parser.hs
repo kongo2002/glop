@@ -51,8 +51,9 @@ unmerge = unmerge' <|> toeol *> pure Nothing
   unmerge' = do
     ts <- timestamp
     (t, pkg) <- unmergeType
+    version <- packageVersion
     toeol
-    return $ Just $ UnmergeLine ts pkg t
+    return $ Just $ UnmergeLine ts pkg version t
 
 
 unmergeType :: Parser (Range, Package)
@@ -87,8 +88,9 @@ logline = line' <|> toeol *> pure Nothing
   line' = do
     ts <- timestamp
     (et, prog, pkg) <- emergeType
+    version <- packageVersion
     toeol
-    return $ Just $ LogLine ts pkg prog et
+    return $ Just $ LogLine ts pkg version prog et
 
 
 emergeType :: Parser (Range, (Int, Int), Package)
@@ -111,6 +113,12 @@ package = do
   return $ Package cat pkg
 
 
+packageVersion :: Parser BS.ByteString
+packageVersion =
+  char '-' *> takeWhile1 (notInClass " )\t\r\n")
+
+
+packageName :: Parser BS.ByteString
 packageName =
   BS.pack <$> many1 (one <|> noDigit)
  where

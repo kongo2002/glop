@@ -42,7 +42,7 @@ getLast =
   sortBy comp . M.foldlWithKey' go [] . aggregate
  where
   comp = compare `on` (toTime . snd)
-  toTime (Operation _ t) = t
+  toTime (Operation _ t _) = t
 
   go xs p es = xs ++ map (\e -> (p, e)) es
 
@@ -124,8 +124,8 @@ pkgMatches (Package c p) (Package c' p') =
 
 
 printOperation :: Operation -> IO ()
-printOperation (Operation start end) = do
-  putStr "   "
+printOperation (Operation start end version) = do
+  putStr $ "   " ++ BS.unpack version ++ ":\n     "
   printTime start
   putStrLn $ " (" ++ timeString duration ++ ")"
  where
@@ -141,7 +141,9 @@ printTime time =
 
 printPackage :: Package -> IO ()
 printPackage p =
-  putStrLn $ BS.unpack (pkgCategory p) ++ "/" ++ BS.unpack (pkgName p)
+  putStrLn $ un (pkgCategory p) ++ "/" ++ un (pkgName p)
+ where
+  un = BS.unpack
 
 
 timeString :: Int -> String
@@ -181,7 +183,7 @@ average ls = sum' `div` len
  where
   sum' = sum $ map diff ls
   len = length ls
-  diff (Operation s e) = e - s
+  diff (Operation s e _) = e - s
 
 
 toMap :: [(Package, LogLine)] -> M.Map Package [LogLine]
@@ -198,7 +200,7 @@ aggregateUnmerge ls@(l:_) =
  where
   go l (lst, ls)
     | isUnmerge lst l =
-      let op = Operation (uTime l) (uTime lst)
+      let op = Operation (uTime l) (uTime lst) (uVersion lst)
       in  (l, Unmerge (uPackage l) op : ls)
     | otherwise       = (l, ls)
 
@@ -253,7 +255,7 @@ calcDiffs xs =
     snd $ foldr go (l, []) ls
    where
     go l (lst, ls)
-      | isEmerge lst l = (l, Operation (logTimestamp lst) (logTimestamp l) : ls)
+      | isEmerge lst l = (l, Operation (logTimestamp lst) (logTimestamp l) (logVersion l) : ls)
       | otherwise      = (l, ls)
 
     isEmerge last line =

@@ -10,7 +10,7 @@ data Range =
   deriving ( Show, Eq, Ord )
 
 
-data Operation = Operation Int Int
+data Operation = Operation Int Int BS.ByteString
 
 
 data Unmerge = Unmerge Package Operation
@@ -25,6 +25,7 @@ data Package = Package
 data LogLine = LogLine
   { logTimestamp :: Int
   , logPackage   :: Package
+  , logVersion   :: BS.ByteString
   , logProgress  :: (Int, Int)
   , logRange     :: Range
   } deriving ( Show, Eq, Ord )
@@ -46,6 +47,7 @@ data RSyncLine = RSyncLine
 data UnmergeLine = UnmergeLine
   { uTime    :: Int
   , uPackage :: Package
+  , uVersion :: BS.ByteString
   , uType    :: Range
   } deriving ( Show )
 
