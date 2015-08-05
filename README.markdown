@@ -1,6 +1,8 @@
 
 # glop
 
+[![build](https://api.travis-ci.org/kongo2002/glop.svg)][travis]
+
 *glop* is a small log file analyzer for the [gentoo][gentoo] portage emerge log.
 
 
@@ -147,3 +149,4 @@ $ glop -s
 
 [gentoo]: https://www.gentoo.org/
 [apache]: http://www.apache.org/licenses/LICENSE-2.0
+[travis]: https://travis-ci.org/kongo2002/glop/
