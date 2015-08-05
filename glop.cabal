@@ -17,7 +17,7 @@ category:            System
 build-type:          Simple
 
 library
-  build-depends:       base >= 4.7 && < 4.8,
+  build-depends:       base >= 4.7 && < 4.9,
                        bytestring,
                        containers,
                        time,
@@ -35,7 +35,7 @@ executable glop
   hs-source-dirs:      src
 
   build-depends:       glop,
-                       base >= 4.7 && < 4.8,
+                       base >= 4.7 && < 4.9,
                        bytestring
 
   ghc-options:         -O2 -Wall
