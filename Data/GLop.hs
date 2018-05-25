@@ -179,11 +179,15 @@ printRsync' (RSync src f t) = do
 
 
 average :: [Operation] -> Int
-average ls = sum' `div` len
+average ls = weights `div` wSums
  where
-  sum' = sum $ map diff ls
-  len = length ls
-  diff (Operation s e _) = e - s
+  go :: Operation -> (Int, Int, Int) -> (Int, Int, Int)
+  go (Operation s e _) (acc, weight, wghtSum) =
+    let duration = e - s
+        weighted = duration * weight
+    in  (acc + weighted, succ weight, wghtSum + weight)
+
+  (weights, _, wSums) = foldr go (0, 1, 0) ls
 
 
 toMap :: [(Package, LogLine)] -> M.Map Package [LogLine]
