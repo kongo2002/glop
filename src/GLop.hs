@@ -2,7 +2,6 @@ module Main
   ( main
   ) where
 
-import           Control.Applicative
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy as BL
 import           Data.Version       ( showVersion )
