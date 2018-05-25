@@ -1,4 +1,16 @@
-language: haskell
+sudo: false
 
-ghc:
-    - 7.8
+language: generic
+
+# caching - pretty crucial with stack
+cache:
+  directories:
+  - $HOME/.stack
+
+before_install:
+- export PATH=$HOME/.local/bin:$PATH
+- mkdir -p ~/.local/bin
+- travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+script:
+- stack --no-terminal test
